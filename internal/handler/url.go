@@ -8,15 +8,20 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"url-shortener/internal/middleware"
 	"url-shortener/internal/repository"
 )
 
 type URLHandler struct {
-	repo repository.URLRepository
+	repo    repository.URLRepository
+	metrics *middleware.Metrics
 }
 
-func NewURLHandler(repo repository.URLRepository) *URLHandler {
-	return &URLHandler{repo: repo}
+func NewURLHandler(repo repository.URLRepository, metrics *middleware.Metrics) *URLHandler {
+	return &URLHandler{
+		repo:    repo,
+		metrics: metrics,
+	}
 }
 
 type CreateShortURLRequest struct {
@@ -51,6 +56,8 @@ func (h *URLHandler) CreateShortURL(c echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create short URL: %w", err)
 	}
+
+	h.metrics.URLsCreated.Inc()
 
 	return c.JSON(http.StatusCreated, CreateShortURLResponse{
 		ShortURL: buildShortURL(c, shortCode),

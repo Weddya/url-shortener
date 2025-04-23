@@ -56,7 +56,7 @@ func main() {
 
 	repo := repository.NewPostgresRepo(conn)
 	metrics := middleware.NewMetrics("url_shortener")
-	urlHandler := handler.NewURLHandler(repo)
+	urlHandler := handler.NewURLHandler(repo, metrics)
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}

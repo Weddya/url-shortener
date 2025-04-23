@@ -12,6 +12,7 @@ import (
 type Metrics struct {
 	HTTPRequestsTotal   *prometheus.CounterVec
 	HTTPRequestDuration *prometheus.HistogramVec
+	URLsCreated         prometheus.Counter
 }
 
 func NewMetrics(namespace string) *Metrics {
@@ -33,6 +34,11 @@ func NewMetrics(namespace string) *Metrics {
 			},
 			[]string{"method", "path"},
 		),
+		URLsCreated: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "urls_created_total",
+			Help:      "Total number of shortened URLs",
+		}),
 	}
 }
 
