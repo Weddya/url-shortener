@@ -5,7 +5,8 @@
 ## Features
 - [x] Сокращение URL
 - [x] Редирект по короткой ссылке
-- [ ] Мониторинг через Prometheus/Grafana
+- [x] Мониторинг через Prometheus/Grafana
+- [ ] Tests
 
 ## Quick Start
 

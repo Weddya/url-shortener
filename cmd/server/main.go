@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"os"
@@ -15,9 +16,10 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 
 	"url-shortener/internal/handler"
+	"url-shortener/internal/middleware"
 	"url-shortener/internal/repository"
 )
 
@@ -53,12 +55,17 @@ func main() {
 	}
 
 	repo := repository.NewPostgresRepo(conn)
-	urlHandler := handler.NewURLHandler(repo)
+	metrics := middleware.NewMetrics("url_shortener")
+	urlHandler := handler.NewURLHandler(repo, metrics)
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	e.Use(echomiddleware.Logger())
+	e.Use(echomiddleware.Recover())
+
+	e.Use(middleware.PrometheusMiddleware(metrics))
+
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	e.POST("/create", urlHandler.CreateShortURL)
 	e.GET("/:code", urlHandler.RedirectByCode)

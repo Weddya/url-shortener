@@ -34,5 +34,26 @@ services:
     depends_on:
       - postgres
 
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "${PROM_PORT}:9090"
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GF_PORT}:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
+  grafana_data:
