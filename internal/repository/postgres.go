@@ -5,13 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/jxskiss/base62"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jxskiss/base62"
 )
 
-const UUID_LENGTH_SHORT_CODE = 8
+const (
+	UUID_LENGTH_SHORT_CODE  = 8
+	MAX_GENERATION_ATTEMPTS = 5
+)
 
 type URLRepository interface {
 	Create(ctx context.Context, originalURL string) (string, error)
@@ -27,12 +29,9 @@ func NewPostgresRepo(pool *pgxpool.Pool) *PostgresRepo {
 }
 
 func (r *PostgresRepo) Create(ctx context.Context, originalURL string) (string, error) {
-	var shortCode string
-	shortCode = generateUUIDCode(UUID_LENGTH_SHORT_CODE)
-	isCodeUnique, err := r.isCodeUnique(ctx, shortCode)
-	for !isCodeUnique {
-		shortCode = generateUUIDCode(UUID_LENGTH_SHORT_CODE)
-		isCodeUnique, err = r.isCodeUnique(ctx, shortCode)
+	shortCode, err := r.generateUniqueCode(ctx)
+	if err != nil {
+		return "", fmt.Errorf("create failed: %w", err)
 	}
 
 	const query = `
@@ -48,6 +47,26 @@ func (r *PostgresRepo) Create(ctx context.Context, originalURL string) (string, 
 	}
 
 	return shortCode, nil
+}
+
+func (r *PostgresRepo) generateUniqueCode(ctx context.Context) (string, error) {
+	for attempt := 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++ {
+		shortCode, err := generateUUIDCode(UUID_LENGTH_SHORT_CODE)
+		if err != nil {
+			return "", fmt.Errorf("code generation failed: %w", err)
+		}
+
+		isUnique, err := r.isCodeUnique(ctx, shortCode)
+		if err != nil {
+			return "", fmt.Errorf("uniqueness check failed: %w", err)
+		}
+
+		if isUnique {
+			return shortCode, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to generate unique code after %d attempts", MAX_GENERATION_ATTEMPTS)
 }
 
 func (r *PostgresRepo) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
@@ -75,10 +94,19 @@ func (r *PostgresRepo) isCodeUnique(ctx context.Context, shortCode string) (bool
 	return !exists, err
 }
 
-func generateUUIDCode(length int) string {
+func generateUUIDCode(length int) (string, error) {
+	if length < 0 {
+		return "", fmt.Errorf("invalid length: %d (must be >= 0)", length)
+	}
+
 	uuidStr := uuid.New().String()
 	encoded := base62.Encode([]byte(uuidStr))
-	return string(encoded[:length])
+
+	if length > len(encoded) {
+		length = len(encoded)
+	}
+
+	return string(encoded[:length]), nil
 }
 
 var ErrNotFound = fmt.Errorf("not found")
