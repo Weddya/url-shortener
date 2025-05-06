@@ -52,3 +52,21 @@ func TestGenerateUUIDCode(t *testing.T) {
 		})
 	}
 }
+
+func FuzzGenerateUUIDCode(f *testing.F) {
+	f.Fuzz(func(t *testing.T, length int) {
+		res, err := generateUUIDCode(length)
+
+		if length < 0 && err == nil {
+			t.Errorf("%q, %v", res, err)
+		}
+
+		if length > 0 && err != nil {
+			t.Errorf("%q, %v", res, err)
+		}
+
+		if length > 48 && len(res) != 48 {
+			t.Errorf("%q, %v", res, err)
+		}
+	})
+}
