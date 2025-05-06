@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const GENERATED_STRING_MAX_LENGTH = 48
+
 func TestGenerateUUIDCode(t *testing.T) {
 	base62Regex := regexp.MustCompile(`^[0-9a-zA-Z]*$`)
 
@@ -17,7 +19,7 @@ func TestGenerateUUIDCode(t *testing.T) {
 	}{
 		{"Normal length", 8, 8, false},
 		{"Zero length", 0, 0, false},
-		{"Large length", 100, 48, false},
+		{"Large length", 100, GENERATED_STRING_MAX_LENGTH, false},
 		{"Negative length", -5, 0, true},
 	}
 
@@ -57,16 +59,20 @@ func FuzzGenerateUUIDCode(f *testing.F) {
 	f.Fuzz(func(t *testing.T, length int) {
 		res, err := generateUUIDCode(length)
 
-		if length < 0 && err == nil {
-			t.Errorf("%q, %v", res, err)
+		if length < 0 && !assert.ErrorContains(t, err, "invalid length") {
+			t.Errorf("invalid input length is not covered, length = %v", length)
 		}
 
 		if length > 0 && err != nil {
-			t.Errorf("%q, %v", res, err)
+			t.Errorf("generated value = %q, err = %v", res, err)
 		}
 
-		if length > 48 && len(res) != 48 {
-			t.Errorf("%q, %v", res, err)
+		if length > 0 && length <= GENERATED_STRING_MAX_LENGTH && len(res) != length {
+			t.Errorf("length missmatch, want = %v, got = %v", length, len(res))
+		}
+
+		if length > GENERATED_STRING_MAX_LENGTH && len(res) != GENERATED_STRING_MAX_LENGTH {
+			t.Errorf("generated string has length over max, string = %q, length = %v", res, err)
 		}
 	})
 }
